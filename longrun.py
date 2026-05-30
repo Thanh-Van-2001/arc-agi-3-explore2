@@ -78,12 +78,20 @@ def run_game(arc, card, cls, gid, max_steps):
 
 def main():
     ap = argparse.ArgumentParser()
+    global OUT
     ap.add_argument("--agent", default="explore")
     ap.add_argument("--steps", type=int, default=3000)
+    ap.add_argument("--games", default="",
+                    help="comma-separated game prefixes to restrict to (default: all)")
+    ap.add_argument("--out", default="longrun_results.json", help="results json path")
     a = ap.parse_args()
+    OUT = a.out
     cls = AVAILABLE_AGENTS[a.agent]
     arc = Arcade()
     games = sorted(e.game_id for e in arc.get_environments())
+    if a.games.strip():
+        prefixes = [p.strip() for p in a.games.split(",") if p.strip()]
+        games = [g for g in games if any(g.startswith(p) for p in prefixes)]
     card = arc.open_scorecard(tags=["longrun", a.agent])
     started = time.strftime("%Y-%m-%d %H:%M:%S")
     print("START %s scorecard=%s games=%d steps/game=%d"
