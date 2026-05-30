@@ -112,6 +112,9 @@ def _click_candidates(grid: Optional[list], limit: int = 12) -> list:
 class Explore(Agent):
     """Frontier graph exploration agent."""
 
+    # ls20 enforces an ~80-action episode budget server-side (GAME_OVER after),
+    # so a high cap mainly matters for games that allow longer episodes / many
+    # RESET-and-retry trajectories. Keep generous; the graph carries across resets.
     MAX_ACTIONS = 600
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
