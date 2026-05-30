@@ -86,18 +86,28 @@ def _background_color(grid: list) -> int:
     return max(counts, key=counts.get)
 
 
-def _click_candidates(grid: Optional[list], limit: int = 12) -> list:
-    """Propose (x, y) click points, ordered by button-likeness.
+def _click_candidates(grid: Optional[list], limit: int = 64, grid_step: int = 8) -> list:
+    """Propose (x, y) click points for ACTION6, ordered by priority.
 
-    Heuristic: prefer small, compact, non-background blobs (likely buttons/items)
-    over large background regions. Returns centroids in (x, y) = (col, row).
+    v2: two tiers (v1 used only tier 1 -> too sparse for click-only games like
+    ft09, which found just 2 states and reset-looped):
+      Tier 1 (high priority): centroids of small/compact non-background blobs --
+        the most button-like elements, sorted by button-likeness.
+      Tier 2 (fallback coverage): a coarse grid scan every `grid_step` cells so
+        the whole 64x64 board gets probed, not just detected blobs. Catches
+        invisible/background-colored hot-zones the component heuristic misses.
+
+    Returns up to `limit` (x, y) = (col, row) points, tier 1 first, deduplicated.
     """
     if not grid:
         return []
+    h = len(grid)
+    w = len(grid[0]) if h else 0
     bg = _background_color(grid)
-    comps = _connected_components(grid)
+
+    # Tier 1: button-like blob centroids
     scored = []
-    for comp in comps:
+    for comp in _connected_components(grid):
         if comp["color"] == bg:
             continue
         r0, c0, r1, c1 = comp["bbox"]
@@ -106,7 +116,24 @@ def _click_candidates(grid: Optional[list], limit: int = 12) -> list:
         score = fill / (1.0 + comp["size"])
         scored.append((score, comp["centroid"]))
     scored.sort(key=lambda t: t[0], reverse=True)
-    return [cxy for _, cxy in scored[:limit]]
+
+    out: list = []
+    seen = set()
+    for _, cxy in scored:
+        if cxy not in seen:
+            seen.add(cxy)
+            out.append(cxy)
+
+    # Tier 2: coarse grid sweep (offset by half-step to hit cell centres)
+    half = max(1, grid_step // 2)
+    for y in range(half, h, grid_step):
+        for x in range(half, w, grid_step):
+            p = (x, y)
+            if p not in seen:
+                seen.add(p)
+                out.append(p)
+
+    return out[:limit]
 
 
 class Explore(Agent):
@@ -117,6 +144,10 @@ class Explore(Agent):
     # RESET-and-retry trajectories. Keep generous; the graph carries across resets.
     MAX_ACTIONS = 600
 
+    # After this many resets with no newly-discovered state, treat the game as a
+    # deterministic dead-end for this agent (avoids the ft09 reset loop).
+    MAX_EXHAUSTED_RESETS = 8
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._nodes: dict = {}
@@ -125,6 +156,7 @@ class Explore(Agent):
         self._replay_queue: deque = deque()
         self._last_key: Optional[tuple] = None
         self._last_plan: Optional[Any] = None
+        self._exhausted_resets = 0
 
     def is_done(self, frames: list, latest_frame: FrameData) -> bool:
         done = latest_frame.state is GameState.WIN
@@ -187,6 +219,10 @@ class Explore(Agent):
         if key not in self._nodes:
             self._nodes[key] = {"untried": self._build_plans(latest_frame)}
             self._edges.setdefault(key, [])
+            # Discovering a new state means exploration is still productive --
+            # clear the stuck counter so reset-loop detection only fires when we
+            # truly stop finding anything new.
+            self._exhausted_resets = 0
 
     def _bfs_to_frontier(self, start: tuple) -> Optional[list]:
         """Return plans leading from start to a node with untried plans."""
@@ -240,6 +276,26 @@ class Explore(Agent):
             self._last_key, self._last_plan = key, plan
             return self._plan_to_action(plan)
 
+        # Whole reachable graph exhausted. RESET is only useful if the episode
+        # actually ended (GAME_OVER) or to retry a non-deterministic level. For
+        # a deterministic NOT_FINISHED state, reset returns to the same explored
+        # start -> infinite loop (this is exactly what trapped ft09 in v1).
+        # Count these and stop fighting once it's clearly stuck.
         self._replay_queue.clear()
         self._last_key, self._last_plan = None, None
+        self._exhausted_resets += 1
+        if self._exhausted_resets == 1:
+            logger.info(
+                "Graph exhausted at %d states; resetting to retry.", len(self._nodes)
+            )
+        if self._exhausted_resets >= self.MAX_EXHAUSTED_RESETS:
+            # Genuinely stuck: deterministic dead-end, no new states across many
+            # resets. Keep returning RESET (harness/MAX_ACTIONS will end it) but
+            # don't pretend we're exploring.
+            if self._exhausted_resets == self.MAX_EXHAUSTED_RESETS:
+                logger.info(
+                    "Stuck: %d resets with no new states (%d total) -- "
+                    "deterministic dead-end for this agent.",
+                    self._exhausted_resets, len(self._nodes),
+                )
         return GameAction.RESET
