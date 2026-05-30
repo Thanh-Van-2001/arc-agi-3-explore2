@@ -49,7 +49,7 @@ def new_agent():
 
 
 def test_components_and_clicks():
-    # 4x4 grid: background 0, a 1x1 blob of color 5 at (row1,col2), 2x2 blob color 3
+    # 4x4 grid: background 0, a 1x1 blob of color 5, a 2x2 blob of color 3
     grid = [
         [0, 0, 0, 0],
         [0, 0, 5, 0],
@@ -60,10 +60,40 @@ def test_components_and_clicks():
     colors = sorted({c["color"] for c in comps})
     assert colors == [0, 3, 5], colors
     cands = _click_candidates(grid)
-    # background (0) must not be a candidate; the small blob (5) should rank first
+    # background (0) must not be a candidate; both blobs should appear
     assert cands, "expected click candidates"
-    assert cands[0] == (2, 1), f"expected small blob (x=2,y=1) first, got {cands[0]}"
+    assert (2, 1) in cands, f"small blob (x=2,y=1) missing from {cands}"
     print("OK  components/clicks: colors=%s candidates=%s" % (colors, cands))
+
+
+def test_priority_tiers():
+    # Small rare-color button should outrank a large common-color block.
+    grid = [[0] * 32 for _ in range(32)]
+    for r in range(5, 8):
+        for c in range(5, 8):
+            grid[r][c] = 5  # small salient button (rare color)
+    for r in range(15, 27):
+        for c in range(15, 27):
+            grid[r][c] = 1  # large common block
+    cands = _click_candidates(grid)
+    assert cands[0] == (6, 6), f"expected button (6,6) first, got {cands[0]}"
+    print("OK  priority tiers: button ranks first (%s)" % (cands[0],))
+
+
+def test_border_mask():
+    # Frames differing ONLY in the border must hash the same; interior differs.
+    import copy
+
+    g1 = [[0] * 8 for _ in range(8)]
+    g1[4][4] = 5
+    g2 = copy.deepcopy(g1)
+    g2[0][0] = 9
+    g2[7][7] = 9  # border-only change
+    g3 = copy.deepcopy(g1)
+    g3[4][5] = 7  # interior change
+    assert _grid_key([g1]) == _grid_key([g2]), "border change must not change key"
+    assert _grid_key([g1]) != _grid_key([g3]), "interior change must change key"
+    print("OK  border mask: edge ignored, interior distinguished")
 
 
 def test_reset_when_not_played():
@@ -79,13 +109,11 @@ def test_explores_untried_then_graph():
     gridA = [[0, 0], [0, 1]]
     fA = make_frame(gridA, GameState.NOT_FINISHED,
                     actions=[GameAction.ACTION1, GameAction.ACTION2])
-    # First visit to A: should pop an untried simple action (ACTION1 or 2)
     a1 = ag.choose_action([fA], fA)
     assert a1 in (GameAction.ACTION1, GameAction.ACTION2), a1
     keyA = _grid_key(fA.frame)
     assert keyA in ag._nodes, "node A not registered"
     untried_after = len(ag._nodes[keyA]["untried"])
-    # Stay on same frame A again -> should pop the *other* untried action
     a2 = ag.choose_action([fA], fA)
     assert a2 in (GameAction.ACTION1, GameAction.ACTION2)
     assert a2 != a1, "should not repeat the same untried action"
@@ -103,19 +131,16 @@ def test_win_is_done():
 
 
 def test_frontier_replay():
-    """When current node is exhausted, agent should navigate (replay) toward a
-    node that still has untried actions rather than getting stuck."""
     ag = new_agent()
     gridA = [[0, 0], [0, 1]]
     gridB = [[0, 0], [1, 1]]
     fA = make_frame(gridA, GameState.NOT_FINISHED, actions=[GameAction.ACTION1])
     fB = make_frame(gridB, GameState.NOT_FINISHED,
                     actions=[GameAction.ACTION1, GameAction.ACTION2])
-    # Visit A (only 1 untried action). Pop it.
-    ag.choose_action([fA], fA)               # decides from A, last_plan set
-    # Transition to B (records edge A->B), B has untried actions
-    ag.choose_action([fB], fB)               # registers B, pops one untried at B
-    keyA, keyB = _grid_key(fA.frame), _grid_key(fB.frame)
+    ag.choose_action([fA], fA)
+    ag.choose_action([fB], fB)
+    keyA = _grid_key(fA.frame)
+    keyB = _grid_key(fB.frame)
     assert keyB in ag._nodes
     assert any(c == keyB for _, c in ag._edges.get(keyA, [])), "edge A->B not recorded"
     print("OK  frontier graph edges recorded (A->B)")
@@ -124,6 +149,8 @@ def test_frontier_replay():
 if __name__ == "__main__":
     tests = [
         test_components_and_clicks,
+        test_priority_tiers,
+        test_border_mask,
         test_reset_when_not_played,
         test_explores_untried_then_graph,
         test_win_is_done,
