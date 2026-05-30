@@ -126,10 +126,18 @@ class Explore(Agent):
     def is_done(self, frames: list, latest_frame: FrameData) -> bool:
         return latest_frame.state is GameState.WIN
 
+    @staticmethod
+    def _as_action(a: Any) -> GameAction:
+        """available_actions may arrive as ints (pydantic-coerced) or enums."""
+        if isinstance(a, GameAction):
+            return a
+        return GameAction.from_id(a)
+
     def _simple_actions(self, latest_frame: FrameData) -> list:
         avail = getattr(latest_frame, "available_actions", None)
         if avail:
-            acts = [a for a in avail if a is not GameAction.RESET]
+            acts = [self._as_action(a) for a in avail]
+            acts = [a for a in acts if a is not GameAction.RESET]
         else:
             acts = [a for a in GameAction if a is not GameAction.RESET]
         return acts
