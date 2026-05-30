@@ -90,7 +90,7 @@ def test_border_mask():
     g2[0][0] = 9
     g2[7][7] = 9  # border-only change
     g3 = copy.deepcopy(g1)
-    g3[4][5] = 7  # interior change
+    g3[4][3] = 7  # interior change (cols 3-4 are the unmasked interior of an 8-wide grid, border=3)
     assert _grid_key([g1]) == _grid_key([g2]), "border change must not change key"
     assert _grid_key([g1]) != _grid_key([g3]), "interior change must change key"
     print("OK  border mask: edge ignored, interior distinguished")
