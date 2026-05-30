@@ -1,0 +1,60 @@
+[
+  {
+    "game": "ls20",
+    "game_id": "ls20-9607627b",
+    "steps": 600,
+    "max_levels": 1,
+    "resets": 5,
+    "actions_seen": {
+      "ACTION1": 167,
+      "ACTION2": 140,
+      "ACTION3": 150,
+      "ACTION4": 138,
+      "RESET": 5
+    },
+    "distinct_states": 103,
+    "final_state": "NOT_FINISHED",
+    "seconds": 513.6
+  },
+  {
+    "game": "vc33",
+    "game_id": "vc33-5430563c",
+    "steps": 600,
+    "max_levels": 1,
+    "resets": 11,
+    "actions_seen": {
+      "ACTION6": 589,
+      "RESET": 11
+    },
+    "distinct_states": 26,
+    "final_state": "NOT_FINISHED",
+    "seconds": 198.9
+  },
+  {
+    "game": "ft09",
+    "game_id": "ft09-0d8bbf25",
+    "steps": 600,
+    "max_levels": 0,
+    "resets": 0,
+    "actions_seen": {
+      "ACTION6": 600
+    },
+    "distinct_states": 22,
+    "final_state": "NOT_FINISHED",
+    "seconds": 208.4
+  },
+  {
+    "game": "tn36",
+    "game_id": "tn36-ef4dde99",
+    "steps": 600,
+    "max_levels": 1,
+    "resets": 8,
+    "actions_seen": {
+      "ACTION6": 592,
+      "RESET": 8
+    },
+    "distinct_states": 112,
+    "final_state": "NOT_FINISHED",
+    "seconds": 205.2
+  }
+]
