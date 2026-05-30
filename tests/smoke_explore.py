@@ -66,18 +66,19 @@ def test_components_and_clicks():
     print("OK  components/clicks: colors=%s candidates=%s" % (colors, cands))
 
 
-def test_priority_tiers():
-    # Small rare-color button should outrank a large common-color block.
+def test_click_likeness_order():
+    # Small compact button should rank ahead of a large block (flat ordering by
+    # button-likeness; hard tiers were removed after they regressed tn36).
     grid = [[0] * 32 for _ in range(32)]
     for r in range(5, 8):
         for c in range(5, 8):
-            grid[r][c] = 5  # small salient button (rare color)
+            grid[r][c] = 5  # small compact button
     for r in range(15, 27):
         for c in range(15, 27):
-            grid[r][c] = 1  # large common block
+            grid[r][c] = 1  # large block
     cands = _click_candidates(grid)
-    assert cands[0] == (6, 6), f"expected button (6,6) first, got {cands[0]}"
-    print("OK  priority tiers: button ranks first (%s)" % (cands[0],))
+    assert cands[0] == (6, 6), f"expected small button (6,6) first, got {cands[0]}"
+    print("OK  click ordering: small button ranks first (%s)" % (cands[0],))
 
 
 def test_border_mask():
@@ -149,7 +150,7 @@ def test_frontier_replay():
 if __name__ == "__main__":
     tests = [
         test_components_and_clicks,
-        test_priority_tiers,
+        test_click_likeness_order,
         test_border_mask,
         test_reset_when_not_played,
         test_explores_untried_then_graph,

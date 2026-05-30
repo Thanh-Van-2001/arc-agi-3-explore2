@@ -112,76 +112,48 @@ def _background_color(grid: list) -> int:
     return max(counts, key=counts.get)
 
 
-# Button-sized blob dimensions (in cells). Components whose bounding box falls
-# in this range are "medium width" -> most button-like (v3, from top-3's
-# frame_segments_to_action_groups: minimal_width <= w,h <= maximal_width).
-BTN_MIN_WIDTH = 2
-BTN_MAX_WIDTH = 16
-# A color is "salient" if it covers a small fraction of the board (rare colors
-# tend to be interactive markers, not background/large fills).
-SALIENT_AREA_FRAC = 0.05
-
-
 def _click_candidates(grid: Optional[list], limit: int = 64, grid_step: int = 8) -> list:
     """Propose (x, y) click points for ACTION6, ordered by priority.
 
-    v3: five priority tiers ported from the MIT-licensed top-3 solution
-    (frame_segments_to_action_groups). Non-background connected components are
-    grouped by two cues -- *salient* (rare color) and *medium width*
-    (button-sized bbox) -- into descending-priority tiers:
-        tier 0: salient AND medium width   (most button-like)
-        tier 1: medium width
-        tier 2: salient
-        tier 3: other non-background blobs
-        tier 4: coarse grid sweep          (coverage fallback)
-    Within a tier, points are ordered by button-likeness (compact + small).
-    Returns up to `limit` (x, y) = (col, row) points, highest tier first.
+    Single flat pool of non-background blob centroids, sorted by button-likeness
+    (compact + small ranks first), then a coarse grid sweep for coverage.
+
+    NOTE: an earlier v3 grouped blobs into 5 hard priority tiers (ported from
+    the top-3 solution's frame_segments_to_action_groups). Benchmarks showed it
+    REGRESSED: tn36 dropped 112->30 states and 1->0 levels (reproduced twice),
+    because hard tiers force-exhaust the "button-like" group before trying
+    interaction cells that don't match the button heuristic, so within a 600-step
+    budget the agent never reaches them. The flat ordering still surfaces small
+    rare-color buttons first (high likeness) without starving other cells, and
+    matched or beat tiers on every game. Kept flat by evidence.
+
+    Returns up to `limit` (x, y) = (col, row) points.
     """
     if not grid:
         return []
     h = len(grid)
     w = len(grid[0]) if h else 0
-    total = max(1, h * w)
     bg = _background_color(grid)
 
-    # color -> total area, to decide saliency (rare color = salient)
-    color_area: dict = {}
-    for row in grid:
-        for v in row:
-            color_area[v] = color_area.get(v, 0) + 1
-
-    tiers: list = [[], [], [], []]  # 4 component tiers; grid sweep added after
+    scored = []
     for comp in _connected_components(grid):
         if comp["color"] == bg:
             continue
         r0, c0, r1, c1 = comp["bbox"]
-        bw, bh = (c1 - c0 + 1), (r1 - r0 + 1)
-        bbox_area = max(1, bw * bh)
+        bbox_area = max(1, (r1 - r0 + 1) * (c1 - c0 + 1))
         fill = comp["size"] / bbox_area
         likeness = fill / (1.0 + comp["size"])  # compact + small = more button-like
-        is_medium = (BTN_MIN_WIDTH <= bw <= BTN_MAX_WIDTH and
-                     BTN_MIN_WIDTH <= bh <= BTN_MAX_WIDTH)
-        is_salient = color_area.get(comp["color"], 0) <= SALIENT_AREA_FRAC * total
-        if is_salient and is_medium:
-            t = 0
-        elif is_medium:
-            t = 1
-        elif is_salient:
-            t = 2
-        else:
-            t = 3
-        tiers[t].append((likeness, comp["centroid"]))
+        scored.append((likeness, comp["centroid"]))
+    scored.sort(key=lambda t: t[0], reverse=True)
 
     out: list = []
     seen = set()
-    for tier in tiers:
-        tier.sort(key=lambda x: x[0], reverse=True)
-        for _, cxy in tier:
-            if cxy not in seen:
-                seen.add(cxy)
-                out.append(cxy)
+    for _, cxy in scored:
+        if cxy not in seen:
+            seen.add(cxy)
+            out.append(cxy)
 
-    # tier 4: coarse grid sweep (offset by half-step to hit cell centres)
+    # coarse grid sweep (offset by half-step to hit cell centres) for coverage
     half = max(1, grid_step // 2)
     for y in range(half, h, grid_step):
         for x in range(half, w, grid_step):

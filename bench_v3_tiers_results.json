@@ -1,0 +1,43 @@
+[
+  {
+    "game": "vc33",
+    "game_id": "vc33-5430563c",
+    "steps": 600,
+    "max_levels": 1,
+    "resets": 11,
+    "actions_seen": {
+      "ACTION6": 589,
+      "RESET": 11
+    },
+    "distinct_states": 25,
+    "final_state": "NOT_FINISHED",
+    "seconds": 165.2
+  },
+  {
+    "game": "ft09",
+    "game_id": "ft09-0d8bbf25",
+    "steps": 600,
+    "max_levels": 0,
+    "resets": 0,
+    "actions_seen": {
+      "ACTION6": 600
+    },
+    "distinct_states": 22,
+    "final_state": "NOT_FINISHED",
+    "seconds": 199.7
+  },
+  {
+    "game": "tn36",
+    "game_id": "tn36-ef4dde99",
+    "steps": 600,
+    "max_levels": 0,
+    "resets": 9,
+    "actions_seen": {
+      "ACTION6": 591,
+      "RESET": 9
+    },
+    "distinct_states": 30,
+    "final_state": "NOT_FINISHED",
+    "seconds": 168.3
+  }
+]
