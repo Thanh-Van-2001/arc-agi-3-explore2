@@ -25,7 +25,7 @@ from arcengine import GameState  # noqa: E402
 from agents import AVAILABLE_AGENTS  # noqa: E402
 
 logging.getLogger().setLevel(logging.WARNING)
-OUT = "longrun_results.json"
+OUT = "longrun_results.json"  # overridable via --out
 
 
 def run_game(arc, card, cls, gid, max_steps):
