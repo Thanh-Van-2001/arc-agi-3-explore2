@@ -112,45 +112,76 @@ def _background_color(grid: list) -> int:
     return max(counts, key=counts.get)
 
 
+# Button-sized blob dimensions (in cells). Components whose bounding box falls
+# in this range are "medium width" -> most button-like (v3, from top-3's
+# frame_segments_to_action_groups: minimal_width <= w,h <= maximal_width).
+BTN_MIN_WIDTH = 2
+BTN_MAX_WIDTH = 16
+# A color is "salient" if it covers a small fraction of the board (rare colors
+# tend to be interactive markers, not background/large fills).
+SALIENT_AREA_FRAC = 0.05
+
+
 def _click_candidates(grid: Optional[list], limit: int = 64, grid_step: int = 8) -> list:
     """Propose (x, y) click points for ACTION6, ordered by priority.
 
-    v2: two tiers (v1 used only tier 1 -> too sparse for click-only games like
-    ft09, which found just 2 states and reset-looped):
-      Tier 1 (high priority): centroids of small/compact non-background blobs --
-        the most button-like elements, sorted by button-likeness.
-      Tier 2 (fallback coverage): a coarse grid scan every `grid_step` cells so
-        the whole 64x64 board gets probed, not just detected blobs. Catches
-        invisible/background-colored hot-zones the component heuristic misses.
-
-    Returns up to `limit` (x, y) = (col, row) points, tier 1 first, deduplicated.
+    v3: five priority tiers ported from the MIT-licensed top-3 solution
+    (frame_segments_to_action_groups). Non-background connected components are
+    grouped by two cues -- *salient* (rare color) and *medium width*
+    (button-sized bbox) -- into descending-priority tiers:
+        tier 0: salient AND medium width   (most button-like)
+        tier 1: medium width
+        tier 2: salient
+        tier 3: other non-background blobs
+        tier 4: coarse grid sweep          (coverage fallback)
+    Within a tier, points are ordered by button-likeness (compact + small).
+    Returns up to `limit` (x, y) = (col, row) points, highest tier first.
     """
     if not grid:
         return []
     h = len(grid)
     w = len(grid[0]) if h else 0
+    total = max(1, h * w)
     bg = _background_color(grid)
 
-    # Tier 1: button-like blob centroids
-    scored = []
+    # color -> total area, to decide saliency (rare color = salient)
+    color_area: dict = {}
+    for row in grid:
+        for v in row:
+            color_area[v] = color_area.get(v, 0) + 1
+
+    tiers: list = [[], [], [], []]  # 4 component tiers; grid sweep added after
     for comp in _connected_components(grid):
         if comp["color"] == bg:
             continue
         r0, c0, r1, c1 = comp["bbox"]
-        bbox_area = max(1, (r1 - r0 + 1) * (c1 - c0 + 1))
+        bw, bh = (c1 - c0 + 1), (r1 - r0 + 1)
+        bbox_area = max(1, bw * bh)
         fill = comp["size"] / bbox_area
-        score = fill / (1.0 + comp["size"])
-        scored.append((score, comp["centroid"]))
-    scored.sort(key=lambda t: t[0], reverse=True)
+        likeness = fill / (1.0 + comp["size"])  # compact + small = more button-like
+        is_medium = (BTN_MIN_WIDTH <= bw <= BTN_MAX_WIDTH and
+                     BTN_MIN_WIDTH <= bh <= BTN_MAX_WIDTH)
+        is_salient = color_area.get(comp["color"], 0) <= SALIENT_AREA_FRAC * total
+        if is_salient and is_medium:
+            t = 0
+        elif is_medium:
+            t = 1
+        elif is_salient:
+            t = 2
+        else:
+            t = 3
+        tiers[t].append((likeness, comp["centroid"]))
 
     out: list = []
     seen = set()
-    for _, cxy in scored:
-        if cxy not in seen:
-            seen.add(cxy)
-            out.append(cxy)
+    for tier in tiers:
+        tier.sort(key=lambda x: x[0], reverse=True)
+        for _, cxy in tier:
+            if cxy not in seen:
+                seen.add(cxy)
+                out.append(cxy)
 
-    # Tier 2: coarse grid sweep (offset by half-step to hit cell centres)
+    # tier 4: coarse grid sweep (offset by half-step to hit cell centres)
     half = max(1, grid_step // 2)
     for y in range(half, h, grid_step):
         for x in range(half, w, grid_step):
