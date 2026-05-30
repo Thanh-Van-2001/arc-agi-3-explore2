@@ -30,3 +30,8 @@ __pycache__/
 # build artifacts
 arc_agi_3_agents.egg-info/
 *.egg-info/
+
+# transient benchmark working file (canonical snapshots are bench_v*_results.json)
+bench_results.json
+_*.txt
+_*.log
