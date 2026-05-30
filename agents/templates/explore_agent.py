@@ -28,11 +28,37 @@ from ..agent import Agent
 logger = logging.getLogger()
 
 
+# v3: width of the border band masked out before hashing a frame into a state
+# key. ARC-AGI-3 games render step counters / status bars along the edges; those
+# change every step and would otherwise explode the state space with spurious
+# nodes. Masking the border collapses them (technique ported from the MIT-
+# licensed 3rd-place "just-explore" solution, identify_status_bars_crude).
+STATUS_BAR_BORDER = 3
+
+
+def _mask_borders(grid: list, border: int = STATUS_BAR_BORDER) -> tuple:
+    """Return a hashable copy of a 2D grid with the outer `border` cells zeroed,
+    so edge status bars don't create distinct states."""
+    h = len(grid)
+    w = len(grid[0]) if h else 0
+    if h <= 2 * border or w <= 2 * border:
+        # too small to mask meaningfully; hash as-is
+        return tuple(tuple(row) for row in grid)
+    out = []
+    for r in range(h):
+        if r < border or r >= h - border:
+            out.append((0,) * w)
+        else:
+            row = grid[r]
+            out.append((0,) * border + tuple(row[border:w - border]) + (0,) * border)
+    return tuple(out)
+
+
 def _grid_key(frame: Optional[list]) -> tuple:
-    """Hashable signature of the (possibly multi-grid) frame."""
+    """Hashable signature of the frame, with edge status bars masked out (v3)."""
     if not frame:
         return ()
-    return tuple(tuple(tuple(row) for row in grid) for grid in frame)
+    return tuple(_mask_borders(grid) for grid in frame)
 
 
 def _last_grid(frame: Optional[list]) -> Optional[list]:
