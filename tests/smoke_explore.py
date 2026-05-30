@@ -29,7 +29,7 @@ def make_frame(grid2d, state, levels=0, actions=None):
         frame=[grid2d],
         state=state,
         levels_completed=levels,
-        win_levels=[1],
+        win_levels=1,
         guid="g",
         full_reset=False,
         available_actions=actions

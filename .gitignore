@@ -26,3 +26,7 @@ logs.log
 recordings/
 __pycache__/
 *.pyc
+
+# build artifacts
+arc_agi_3_agents.egg-info/
+*.egg-info/
