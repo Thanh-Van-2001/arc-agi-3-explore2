@@ -124,7 +124,17 @@ class Explore(Agent):
         self._last_plan: Optional[Any] = None
 
     def is_done(self, frames: list, latest_frame: FrameData) -> bool:
-        return latest_frame.state is GameState.WIN
+        done = latest_frame.state is GameState.WIN
+        # Lightweight diagnostics: log state changes + periodic heartbeat so we
+        # can see WIN/GAME_OVER transitions (action log lines don't show state).
+        st = getattr(latest_frame.state, "name", str(latest_frame.state))
+        if st != getattr(self, "_last_logged_state", None):
+            logger.info(
+                "STATE -> %s (action %d, levels_completed=%d, nodes=%d)",
+                st, self.action_counter, latest_frame.levels_completed, len(self._nodes),
+            )
+            self._last_logged_state = st
+        return done
 
     @staticmethod
     def _as_action(a: Any) -> GameAction:
