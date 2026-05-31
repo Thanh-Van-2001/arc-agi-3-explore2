@@ -24,7 +24,12 @@ from typing import Dict, List, Optional, Tuple
 
 from arcengine import GameAction
 
-from agents.templates.explore_agent import Explore, _grid_key, _mask_borders
+from agents.templates.explore_agent import (
+    Explore,
+    _background_color,
+    _grid_key,
+    _mask_borders,
+)
 
 _MOVE_NAMES = {"ACTION1", "ACTION2", "ACTION3", "ACTION4"}
 
@@ -80,7 +85,7 @@ class WorldModel(Explore):
 
     def _detect_avatar(self, prev, now):
         """Find the color whose cells translate by one constant nonzero vector."""
-        bg = self._background_color(now)
+        bg = _background_color(now)
         pb, nb = _colormap(prev, bg), _colormap(now, bg)
         for col, P in pb.items():
             N = nb.get(col, [])
@@ -107,7 +112,7 @@ class WorldModel(Explore):
                     if 0 <= tgt[0] < len(self._prev_grid) and \
                             0 <= tgt[1] < len(self._prev_grid[0]):
                         gc = self._prev_grid[tgt[0]][tgt[1]]
-                        if gc != self._background_color(self._prev_grid):
+                        if gc != _background_color(self._prev_grid):
                             self._goal_colors.add(gc)
             else:
                 self._learn_dynamics(self._prev_grid, grid, self._last_action)
