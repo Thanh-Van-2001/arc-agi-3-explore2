@@ -48,6 +48,11 @@ from .templates.wm_agent import WorldModel  # noqa: E402
 AVAILABLE_AGENTS["wm"] = WorldModel
 AVAILABLE_AGENTS["worldmodel"] = WorldModel
 
+# Subclasses of Explore (not direct Agent subclasses) aren't caught by the
+# __subclasses__() sweep above; register them explicitly.
+from .templates.explore2_agent import Explore2  # noqa: E402
+AVAILABLE_AGENTS["explore2"] = Explore2
+
 # add all the recording files as valid agent names
 for rec in Recorder.list():
     AVAILABLE_AGENTS[rec] = Playback

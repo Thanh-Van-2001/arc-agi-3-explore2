@@ -207,6 +207,11 @@ class Explore(Agent):
             return a
         return GameAction.from_id(a)
 
+    def _state_key(self, frame: Optional[list]) -> tuple:
+        """Hashable state signature for a frame. Default = static border mask.
+        Subclasses (e.g. Explore2) override to apply a learned counter mask."""
+        return _grid_key(frame)
+
     def _simple_actions(self, latest_frame: FrameData) -> list:
         avail = getattr(latest_frame, "available_actions", None)
         if avail:
@@ -279,7 +284,7 @@ class Explore(Agent):
         if latest_frame.levels_completed != self._level_seen_reset:
             self._level_seen_reset = latest_frame.levels_completed
 
-        key = _grid_key(latest_frame.frame)
+        key = self._state_key(latest_frame.frame)
         self._register(key, latest_frame)
 
         if self._last_key is not None and self._last_plan is not None:
