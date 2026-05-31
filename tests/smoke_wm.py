@@ -28,15 +28,17 @@ def _make(sim=None):
 
 
 def _run(ag, sim, max_steps):
+    """Drive choose_action directly against the sim (which already returns cooked
+    FrameData), bypassing the base Agent's numpy-raw conversion + HTTP path."""
+    latest = sim.observation_space
     steps = 0
     while steps < max_steps:
-        latest = ag._convert_raw_frame_data(sim.observation_space)
         if latest.state is GameState.WIN:
             break
         a = ag.choose_action(ag.frames, latest)
-        fr = ag.take_action(a)
-        if fr:
-            ag.append_frame(fr)
+        aid = a.value if hasattr(a, "value") else int(a)
+        sim.step(aid)
+        latest = sim.observation_space
         steps += 1
     return sim.levels_completed, steps
 
