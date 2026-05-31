@@ -198,5 +198,55 @@
     "distinct_states": 747,
     "final_state": "GAME_OVER",
     "seconds": 1723.7
+  },
+  {
+    "game": "tn36",
+    "game_id": "tn36-ef4dde99",
+    "steps": 15000,
+    "max_levels": 1,
+    "resets": 241,
+    "distinct_states": 2452,
+    "final_state": "NOT_FINISHED",
+    "seconds": 1455.3
+  },
+  {
+    "game": "tr87",
+    "game_id": "tr87-cd924810",
+    "steps": 15000,
+    "max_levels": 0,
+    "resets": 116,
+    "distinct_states": 5811,
+    "final_state": "NOT_FINISHED",
+    "seconds": 1192.8
+  },
+  {
+    "game": "tu93",
+    "game_id": "tu93-0768757b",
+    "steps": 15000,
+    "max_levels": 5,
+    "resets": 556,
+    "distinct_states": 2008,
+    "final_state": "NOT_FINISHED",
+    "seconds": 2660.9
+  },
+  {
+    "game": "vc33",
+    "game_id": "vc33-5430563c",
+    "steps": 15000,
+    "max_levels": 2,
+    "resets": 214,
+    "distinct_states": 465,
+    "final_state": "NOT_FINISHED",
+    "seconds": 1204.2
+  },
+  {
+    "game": "wa30",
+    "game_id": "wa30-ee6fef47",
+    "steps": 15000,
+    "max_levels": 0,
+    "resets": 74,
+    "distinct_states": 7125,
+    "final_state": "NOT_FINISHED",
+    "seconds": 1164.9
   }
 ]
