@@ -1,0 +1,12 @@
+[
+  {
+    "game": "cn04",
+    "game_id": "cn04-2fe56bfb",
+    "steps": 15000,
+    "max_levels": 0,
+    "resets": 197,
+    "distinct_states": 4736,
+    "final_state": "NOT_FINISHED",
+    "seconds": 1216.0
+  }
+]
