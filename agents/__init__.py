@@ -42,16 +42,24 @@ AVAILABLE_AGENTS: dict[str, Type[Agent]] = {
     if cls.__name__ != "Playback"
 }
 
-# World-model agent is a subclass of Explore (not a direct Agent subclass), so
-# the __subclasses__() sweep above doesn't catch it; register it explicitly.
-from .templates.wm_agent import WorldModel  # noqa: E402
-AVAILABLE_AGENTS["wm"] = WorldModel
-AVAILABLE_AGENTS["worldmodel"] = WorldModel
+# Explore subclasses aren't caught by the __subclasses__() sweep above (it only
+# sees direct Agent subclasses), so register them explicitly. Import defensively:
+# a missing/broken optional template must never take down the whole registry
+# (e.g. wm_agent is PAUSED and not deployed to the server).
+def _opt_register(modpath, clsname, *keys):
+    try:
+        mod = __import__(modpath, globals(), locals(), [clsname], 0)
+        cls = getattr(mod, clsname)
+    except Exception as e:  # noqa: BLE001
+        _log.debug("Optional agent %s unavailable: %s", clsname, e)
+        return
+    for k in keys:
+        AVAILABLE_AGENTS[k] = cls
+    globals()[clsname] = cls
 
-# Subclasses of Explore (not direct Agent subclasses) aren't caught by the
-# __subclasses__() sweep above; register them explicitly.
-from .templates.explore2_agent import Explore2  # noqa: E402
-AVAILABLE_AGENTS["explore2"] = Explore2
+
+_opt_register("agents.templates.explore2_agent", "Explore2", "explore2")
+_opt_register("agents.templates.wm_agent", "WorldModel", "wm", "worldmodel")
 
 # add all the recording files as valid agent names
 for rec in Recorder.list():
