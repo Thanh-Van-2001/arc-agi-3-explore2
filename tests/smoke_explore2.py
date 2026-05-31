@@ -74,14 +74,19 @@ def _tests():
     out.append(("guard_no_overmask", ag2._mask_cells == frozenset()))
 
     # 4. effectiveness tracking: ACTION1 always changes state, ACTION2 never.
+    #    A transition is attributed to _prev_emitted (the action that produced the
+    #    NEW frame), so we set _prev_emitted to the action that caused THIS frame,
+    #    and only bump the frame when that action is the "effective" one.
     ag3 = _agent()
+    g0 = _blank(); g0[4][4] = 1
+    ag3._observe_transition([g0])       # seed prev_interior (no attribution)
     val = 1
-    for i in range(10):
-        g = _blank()
-        g[4][4] = val
-        ag3._prev_emitted = "ACTION1" if i % 2 else "ACTION2"
-        if ag3._prev_emitted == "ACTION1":
-            val += 1                    # ACTION1 -> state changes next frame
+    for i in range(8):
+        emitted = "ACTION1" if i % 2 == 0 else "ACTION2"
+        if emitted == "ACTION1":
+            val += 1                    # ACTION1 -> this frame differs from prev
+        g = _blank(); g[4][4] = val     # ACTION2 -> identical frame (no change)
+        ag3._prev_emitted = emitted
         ag3._observe_transition([g])
     e1 = ag3._effect.get("ACTION1", [0, 0])
     e2 = ag3._effect.get("ACTION2", [0, 0])
@@ -90,12 +95,15 @@ def _tests():
     out.append(("effective_action_ranked_higher", p1 > p2))
 
     # 5. _build_plans puts the effective action ahead of the no-op one
-    ag3._effect = {"ACTION1": [9, 9], "ACTION2": [0, 9]}
-    plans = ag3._build_plans(_frame(_blank(),
+    #    (fresh agent: don't inherit ag3's accumulated state).
+    ag5 = _agent()
+    ag5._effect = {"ACTION1": [9, 9], "ACTION2": [0, 9]}
+    plans = ag5._build_plans(_frame(_blank(),
                                     actions=[GameAction.ACTION1, GameAction.ACTION2]))
     simple = [p for p in plans if not isinstance(p, tuple)]
+    names = [getattr(p, "name", str(p)) for p in simple]
     out.append(("plan_order_effective_first",
-                bool(simple) and simple[0] is GameAction.ACTION1))
+                bool(names) and names[0] == "ACTION1"))
 
     # 6. with no learning yet, behaviour == parent (RESET on NOT_PLAYED)
     ag4 = _agent()
