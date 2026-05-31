@@ -31,6 +31,7 @@ with hand-built frame sequences of known ground truth (no network, no game sim).
 """
 from __future__ import annotations
 
+import os
 from typing import Any, Optional
 
 from arcengine import FrameData, GameAction
@@ -49,6 +50,13 @@ class Explore2(Explore):
     # Safety: never mask more than this fraction of interior cells.
     MASK_MAX_FRACTION = 0.20
 
+    # Ablation toggles (env-overridable) so we can A/B which component helps on a
+    # given game. Both default ON. ARC_E2_MASK=0 disables the counter mask;
+    # ARC_E2_REORDER=0 disables effective-action ordering. Used to diagnose the
+    # cn04 regression (explore2 lost a level explore had) without forking code.
+    USE_MASK = os.getenv("ARC_E2_MASK", "1") != "0"
+    USE_REORDER = os.getenv("ARC_E2_REORDER", "1") != "0"
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._mask_cells: Optional[frozenset] = None  # frozen once learned
@@ -66,7 +74,7 @@ class Explore2(Explore):
         out = []
         for grid in frame:
             m = _mask_borders(grid)  # tuple-of-tuples, border already zeroed
-            if self._mask_cells:
+            if self._mask_cells and self.USE_MASK:
                 rows = [list(r) for r in m]
                 h = len(rows)
                 w = len(rows[0]) if h else 0
@@ -126,7 +134,7 @@ class Explore2(Explore):
     # -- effective-action ordering ---------------------------------------
     def _build_plans(self, latest_frame: FrameData) -> list:
         plans = super()._build_plans(latest_frame)
-        if not self._effect:
+        if not self._effect or not self.USE_REORDER:
             return plans
 
         def rank(plan: Any) -> float:
