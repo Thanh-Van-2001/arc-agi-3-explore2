@@ -57,13 +57,19 @@ class WorldModel(Explore):
         self._level = 0
         self._apos: Optional[Tuple[int, int]] = None
         self._intended: Optional[Tuple[str, Tuple[int, int]]] = None
+        self._last_action: Optional[str] = None  # name of last action we emitted
         # telemetry (handy in benchmarks)
         self.planned_moves = 0
         self.fallback_moves = 0
 
     # -- grid helpers -----------------------------------------------------
     def _masked(self, latest) -> List[List[int]]:
-        return _mask_borders(self.grid_of(latest))
+        frame = getattr(latest, "frame", None)
+        if not frame:
+            return []
+        # _mask_borders returns a tuple-of-tuples; we need mutable rows for
+        # indexed lookups, so re-materialise as lists.
+        return [list(row) for row in _mask_borders(frame[-1])]
 
     def _avatar_pos(self, grid) -> Optional[Tuple[int, int]]:
         if self._avatar_color is None:
@@ -196,21 +202,14 @@ class WorldModel(Explore):
     def choose_action(self, frames, latest):
         self._learn(latest)
         planned = self._plan(latest)
-        if planned is None:
+        if planned is not None:
+            self.planned_moves += 1
+            action = self._as_action(GameAction[planned])
+        else:
+            # Defer to the proven Explore policy. It maintains its own graph
+            # bookkeeping; we only need to record what was emitted so the
+            # dynamics learner can attribute the next observed transition.
             self.fallback_moves += 1
-            return super().choose_action(frames, latest)
-        # planned branch: keep the inherited graph bookkeeping coherent so a
-        # later fallback sees consistent state.
-        self.planned_moves += 1
-        key = _grid_key(latest)
-        actions = self._actions_for(latest)
-        if key not in self._nodes:
-            self._nodes[key] = set(a.name for a in actions)
-        if self._last_action is not None and self._current is not None:
-            self._edges[(self._current, self._last_action)] = key
-            self._nodes.get(self._current, set()).discard(self._last_action)
-        self._nodes.get(key, set()).discard(planned)
-        self._current = key
-        self._last_action = planned
-        self._action_history.append(planned)
-        return self._as_action(GameAction[planned])
+            action = super().choose_action(frames, latest)
+        self._last_action = action.name
+        return action
