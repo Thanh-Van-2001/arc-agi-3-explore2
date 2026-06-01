@@ -1,0 +1,11 @@
+# Minimal runtime deps for the explore2 agent (no LLM, no GPU).
+# Pinned from the working .venv (Python 3.12+). The langchain/openai/smolagents
+# stack in pyproject.toml is ONLY for other (LLM) templates and is NOT on the
+# explore2 code path — excluded here to keep the Kaggle submission lean and
+# fully offline-capable.
+arc-agi==0.9.3
+arcengine==0.9.3
+numpy==2.4.6
+pydantic==2.13.4
+requests==2.34.2
+python-dotenv==1.2.2
