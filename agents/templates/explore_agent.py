@@ -112,7 +112,17 @@ def _background_color(grid: list) -> int:
     return max(counts, key=counts.get)
 
 
-def _click_candidates(grid: Optional[list], limit: int = 64, grid_step: int = 8) -> list:
+import os as _os
+# Env-tunable click breadth (defaults 64/8 = the verified 15/25 config). Some
+# click-heavy games (su15/sb26/sc25 win via click-on-sprite) may have the
+# winning sprite ranked beyond the first 64 candidates or between grid points;
+# raising CLICK_LIMIT / densifying CLICK_STEP lets the explorer reach it.
+_CLICK_LIMIT = int(_os.getenv("ARC_E2_CLICK_LIMIT", "64"))
+_CLICK_STEP = int(_os.getenv("ARC_E2_CLICK_STEP", "8"))
+
+
+def _click_candidates(grid: Optional[list], limit: int = _CLICK_LIMIT,
+                      grid_step: int = _CLICK_STEP) -> list:
     """Propose (x, y) click points for ACTION6, ordered by priority.
 
     Single flat pool of non-background blob centroids, sorted by button-likeness
