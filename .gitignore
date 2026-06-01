@@ -35,3 +35,6 @@ arc_agi_3_agents.egg-info/
 bench_results.json
 _*.txt
 _*.log
+_subzip_v1/
+_subzip/
+arc_agi3_explore2_submission.zip
