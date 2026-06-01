@@ -45,10 +45,16 @@ class Explore2(Explore):
     # Observe this many transitions before freezing the learned counter mask.
     MASK_WARMUP = 12
     # A cell is "counter/animation" if it changed in >= this fraction of the
-    # observed transitions during warmup.
-    MASK_CHANGE_RATIO = 0.8
-    # Safety: never mask more than this fraction of interior cells.
-    MASK_MAX_FRACTION = 0.20
+    # observed transitions during warmup. Env-overridable for sweeps.
+    MASK_CHANGE_RATIO = float(os.getenv("ARC_E2_MASK_RATIO", "0.8"))
+    # Safety: never mask more than this fraction of interior cells. Env-overridable.
+    # Diagnosis (2026-06-01): 8/9 failing games freeze an EMPTY mask because the
+    # changing region exceeds this cap (>20% of interior animates every step), so
+    # the state graph explodes and BFS never reaches a goal. Raising the cap (and/
+    # or the change ratio) is the lever under test — but it risks merging real
+    # state on the deep winners (tu93=5, vc33=2), so any change must be swept over
+    # all 25 games, not just the failing ones.
+    MASK_MAX_FRACTION = float(os.getenv("ARC_E2_MASK_MAXFRAC", "0.20"))
 
     # Ablation toggles (env-overridable) so we can A/B which component helps on a
     # given game. Both default ON. ARC_E2_MASK=0 disables the counter mask;
