@@ -59,6 +59,7 @@ def _opt_register(modpath, clsname, *keys):
 
 
 _opt_register("agents.templates.explore2_agent", "Explore2", "explore2")
+_opt_register("agents.templates.planner_agent", "PlannerAgent", "planner")
 _opt_register("agents.templates.wm_agent", "WorldModel", "wm", "worldmodel")
 
 # add all the recording files as valid agent names
