@@ -44,6 +44,55 @@ def detect_avatar_delta(prev_cells: Dict[int, list], now_cells: Dict[int, list]
     return None
 
 
+def detect_avatar_by_diff(prev_grid: list, now_grid: list, bg: int,
+                          max_blob: int = 64
+                          ) -> Optional[Tuple[int, Tuple[int, int]]]:
+    """Robust avatar detection by frame diff: find cells that changed between
+    two frames; if the change is one small object translating (a compact set of
+    cells that vanished from positions A and appeared at A+v for one vector v),
+    return (color_at_new, v). Handles games where many same-colored sprites
+    exist (the per-color 'all cells translate' test fails there).
+
+    Heuristic: collect 'appeared' cells (now != prev, now != bg) and 'vanished'
+    cells (prev != bg, now == bg or different). If appeared is a small blob and
+    vanished is the same-size blob shifted by a single vector v, that's the
+    avatar moving by v; its color = the modal non-bg color among appeared cells.
+    """
+    h = len(now_grid)
+    w = len(now_grid[0]) if h else 0
+    if h != len(prev_grid):
+        return None
+    appeared = []   # cells that are non-bg now but were different/bg before
+    vanished = []   # cells that were non-bg before but changed now
+    for r in range(h):
+        pr, nr = prev_grid[r], now_grid[r]
+        for c in range(w):
+            if pr[c] != nr[c]:
+                if nr[c] != bg:
+                    appeared.append((r, c, nr[c]))
+                if pr[c] != bg:
+                    vanished.append((r, c))
+    if not appeared or not vanished:
+        return None
+    if len(appeared) > max_blob or len(vanished) > max_blob:
+        return None
+    app_pos = sorted((r, c) for r, c, _ in appeared)
+    van_pos = sorted(vanished)
+    if len(app_pos) != len(van_pos):
+        return None
+    vecs = {(app_pos[i][0] - van_pos[i][0], app_pos[i][1] - van_pos[i][1])
+            for i in range(len(app_pos))}
+    if len(vecs) != 1:
+        return None
+    v = next(iter(vecs))
+    if v == (0, 0):
+        return None
+    # avatar color = modal color among appeared cells
+    from collections import Counter
+    col = Counter(cc for _, _, cc in appeared).most_common(1)[0][0]
+    return col, v
+
+
 def astar(start: Tuple[int, int], goal: Tuple[int, int],
           blocked: set, h: int, w: int,
           moves: Dict[str, Tuple[int, int]],

@@ -23,7 +23,9 @@ from agents.templates.explore2_agent import Explore2
 from agents.templates.explore_agent import (
     _background_color, _connected_components, _last_grid, _mask_borders,
 )
-from agents.templates.planner import MOVE_NAMES, astar, detect_avatar_delta
+from agents.templates.planner import (
+    MOVE_NAMES, astar, detect_avatar_delta, detect_avatar_by_diff,
+)
 
 # Candidate win offsets (avatar cell relative to goal cell). g50t wins at
 # goal+1; most class-A games win on exact overlap or 4-adjacency. Try in order.
@@ -156,19 +158,20 @@ class PlannerAgent(Explore2):
             self._planner_dead = True   # not a movement game -> explore2
             return None
 
-        # Phase 1: probe to learn the avatar + per-move cell delta.
+        # Phase 1: probe to learn the avatar + per-move cell delta, via frame
+        # DIFF (robust when many sprites share the avatar's color).
         if self._avatar_color is None or len(self._move_to_delta) < len(move_avail):
-            cells = self._color_cells(grid)
+            bg = _background_color(grid)
             if self._probe_prev is not None and self._probe_i > 0:
                 last_move = move_avail[(self._probe_i - 1) % len(move_avail)]
-                d = detect_avatar_delta(self._probe_prev, cells)
+                d = detect_avatar_by_diff(self._probe_prev, grid, bg)
                 if d is not None:
                     col, vec = d
                     self._avatar_color = col
                     self._move_to_delta[last_move] = vec
-            if self._probe_i < len(move_avail) * 2:
+            if self._probe_i < len(move_avail) * 3:
                 nxt = move_avail[self._probe_i % len(move_avail)]
-                self._probe_prev = cells
+                self._probe_prev = grid
                 self._probe_i += 1
                 return GameAction[nxt]
             # probing budget done; if no avatar, give up planning
