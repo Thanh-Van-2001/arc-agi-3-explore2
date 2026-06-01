@@ -76,21 +76,19 @@ def detect_avatar_by_diff(prev_grid: list, now_grid: list, bg: int,
         return None
     if len(appeared) > max_blob or len(vanished) > max_blob:
         return None
-    app_pos = sorted((r, c) for r, c, _ in appeared)
-    van_pos = sorted(vanished)
-    if len(app_pos) != len(van_pos):
+    # Avatar = the moving object. Estimate its translation by the displacement
+    # of the changed region's centroid (robust to shape/recolor on move, and to
+    # appeared/vanished sets of unequal size). Round to the nearest cell.
+    ar = sum(r for r, _, _ in appeared) / len(appeared)
+    ac = sum(c for _, c, _ in appeared) / len(appeared)
+    vr = sum(r for r, _ in vanished) / len(vanished)
+    vc = sum(c for _, c in vanished) / len(vanished)
+    dv = (round(ar - vr), round(ac - vc))
+    if dv == (0, 0):
         return None
-    vecs = {(app_pos[i][0] - van_pos[i][0], app_pos[i][1] - van_pos[i][1])
-            for i in range(len(app_pos))}
-    if len(vecs) != 1:
-        return None
-    v = next(iter(vecs))
-    if v == (0, 0):
-        return None
-    # avatar color = modal color among appeared cells
     from collections import Counter
     col = Counter(cc for _, _, cc in appeared).most_common(1)[0][0]
-    return col, v
+    return col, dv
 
 
 def astar(start: Tuple[int, int], goal: Tuple[int, int],

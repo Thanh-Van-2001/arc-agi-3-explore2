@@ -50,6 +50,7 @@ class PlannerAgent(Explore2):
         self._failed_plans = 0
         self._planner_dead = False     # gate: fell back permanently this episode
         self._last_levels = 0
+        self._avatar_pos: Optional[Tuple[int, int]] = None
 
     # -- helpers ----------------------------------------------------------
     def _grid(self, latest) -> Optional[list]:
@@ -66,14 +67,25 @@ class PlannerAgent(Explore2):
         return d
 
     def _avatar_cell(self, grid) -> Optional[Tuple[int, int]]:
+        """Avatar centroid = the SMALLEST connected component of avatar_color
+        (the avatar sprite is compact; same-colored walls/decor are larger or
+        more numerous). Track the one nearest the last known avatar position to
+        stay locked on across frames."""
         if self._avatar_color is None:
             return None
-        cells = [(r, c) for r, row in enumerate(grid)
-                 for c, v in enumerate(row) if v == self._avatar_color]
-        if not cells:
+        comps = [c for c in _connected_components(grid)
+                 if c["color"] == self._avatar_color]
+        if not comps:
             return None
-        rs = [p[0] for p in cells]; cs = [p[1] for p in cells]
-        return (sum(rs) // len(rs), sum(cs) // len(cs))
+        # candidate centroids in (row, col)
+        cands = [(c["centroid"][1], c["centroid"][0], c["size"]) for c in comps]
+        if self._avatar_pos is not None:
+            ar, ac = self._avatar_pos
+            cands.sort(key=lambda t: abs(t[0] - ar) + abs(t[1] - ac))
+        else:
+            cands.sort(key=lambda t: t[2])  # smallest first
+        self._avatar_pos = (cands[0][0], cands[0][1])
+        return self._avatar_pos
 
     def _build_plan(self, grid) -> Optional[List[str]]:
         """A* from avatar to an untried candidate goal cell (component centroid
@@ -137,6 +149,7 @@ class PlannerAgent(Explore2):
             self._probe_i = 0
             self._probe_prev = None
             self._move_to_delta.clear()
+            self._avatar_pos = None
 
         grid = self._grid(latest_frame)
 
